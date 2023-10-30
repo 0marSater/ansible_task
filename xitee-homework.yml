@@ -1,0 +1,221 @@
+- hosts: server
+  become: yes
+  remote_user: ubuntu
+
+  tasks:
+  - name: update apt repo
+    apt:
+      update_cache: yes
+
+  - name: install OpenSSH server
+    apt:
+      name: openssh-server
+      state: present
+  
+  - name: install python3-pip
+    apt:
+      name: python3-pip
+      state: present
+    
+  - name: Install Docker python library
+    pip:
+      name: docker
+      state: present
+
+  - name: Start SSH service using systemctl
+    become: yes
+    service:
+      name: sshd
+      state: started
+      enabled: yes
+
+  - name: install sudo
+    apt:
+      name: sudo
+      state: present
+
+  - name: install ufw
+    apt:
+      name: ufw
+      state: present
+
+  - name: start ufw
+    ufw:
+      state: enabled
+
+  - name: allow ssh port
+    ufw:
+      rule: allow
+      port: '22'
+      proto: tcp
+
+  - name: allow port 80 for WordPress
+    ufw:
+      rule: allow
+      port: '80'
+      proto: tcp
+
+  - name: close all other ports
+    ufw:
+      rule: deny
+
+  - name: create user with specific info
+    user:
+      name: xitest
+      password: "{{ 'pasx.123' | password_hash('sha512') }}"
+      groups: sudo
+      shell: /bin/bash
+      createhome: yes
+
+  - name: add ssh keys for xitest user
+    authorized_key:
+      user: xitest
+      key: |
+        ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOH/TlOb8TAXiMhN8u7VNqPC7W2hrhygm/1BZBZZp0q
+        ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP7FHrfu37DbzYBs6T3P/aq+XOeJAtu8Ftl1/3g1EN/K
+
+  - name: allow xitest to log in via password
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      line: "PasswordAuthentication yes"
+
+  - name: restart ssh service
+    service:
+      name: sshd
+      state: restarted
+
+  - name: install docker
+    apt:
+      name: docker.io
+      state: present
+    delay: 15
+
+  - name: start and enable docker
+    service:
+      name: docker
+      state: started
+      enabled: yes
+
+  - name: install docker packages
+    apt:
+      name:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - software-properties-common
+      state: present
+
+  - name: add Docker's official GPG key
+    apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
+      state: present
+
+  - name: verify that we have the key with the fingerprint
+    apt_key:
+      id: 0EBFCD88
+      state: present
+
+  - name: set up the stable repository
+    apt_repository:
+      repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial stable
+      state: present
+
+  - name: add xitest user to the docker group
+    user:
+      name: xitest
+      groups: docker
+      append: yes
+
+  - name: install docker-compose
+    get_url:
+      url: https://github.com/docker/compose/releases/download/1.25.1-rc1/docker-compose-Linux-x86_64
+      dest: /usr/local/bin/docker-compose
+      mode: 'u+x,g+x'
+
+  - name: install docker-compose
+    apt:
+      name: docker-compose
+      state: present
+
+  - name: create dir wordpress-compose
+    file:
+      path: /home/xitest/wordpress-compose
+      state: directory
+      owner: xitest
+      group: xitest
+
+  - name: create docker-compose.yml
+    copy:
+      content: |
+        wordpress:
+          image: wordpress
+          links:
+            - mariadb:mysql
+          environment:
+            - WORDPRESS_DB_PASSWORD=password
+            - WORDPRESS_DB_USER=root
+          ports:
+            - 80:80
+          volumes:
+            - ./html:/var/www/html
+        mariadb:
+          image: mariadb
+          environment:
+            - MYSQL_ROOT_PASSWORD=password
+            - MYSQL_DATABASE=wordpress
+          volumes:
+            - ./database:/var/lib/mysql
+      dest: /home/xitest/wordpress-compose/docker-compose.yml
+      owner: xitest
+      group: xitest
+
+  - name: Run docker-compose up
+    docker_compose:
+      project_src: /home/xitest/wordpress-compose/
+      state: present
+      recreate: smart 
+
+  - name: create backup_directory
+    file:
+      path: /home/xitest/backup_directory
+      state: directory
+      owner: xitest
+      group: xitest
+
+  - name: copy check_backup_date script to the remote server
+    copy:
+      src: ./check_backup_date.sh
+      dest: /home/xitest/check_backup_date.sh
+      owner: xitest  
+      group: xitest  
+      mode: '0755'
+
+  - name: copy backup script to the remote server
+    copy:
+      src: ./backup.sh
+      dest: /home/xitest/backup.sh
+      owner: xitest  
+      group: xitest  
+      mode: '0755'
+
+
+  - name: schedule check_backup_date script at 7:00, 15:00 and 23:00  
+    cron:
+      name: "check_backup_date"
+      minute: "0"
+      hour: "7,15,23"
+      month: "*"
+      job: "/home/xitest/check_backup_date.sh"  
+      state: present
+      user: xitest
+
+
+  - name: schedule backup script at 8:00, 16:00 and 24:00  
+    cron:
+      name: "backup"
+      minute: "0"
+      hour: "0,8,16"
+      month: "*"
+      job: "/home/xitest/backup.sh"  
+      state: present
+      user: xitest
