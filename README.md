@@ -1,25 +1,27 @@
 # Ansible task
 
-It is a task to perform server configuration using ***Ansible*** Managment Configuration tool. 
+he objective involves utilizing the ***Ansible Management Configuration*** tool to set up server configurations.
 
-In less, the task is to perform installtion, create user, setting up firewalls, install certain sofwtares such as docker and docker-compose, deploy WordPress with its Database, and do a daily backup at specific times. You can refere to the all Requirments here [here](link to task pdf.)
+In essence, it entails executing the installation process, creating users, configuring firewalls, installing specific software like docker and docker-compose, deploying WordPress along with its Database, and executing daily backups at designated intervals. Detailed requirements can be found in the [pdf](xitee_devops_homework.pdf).
 
 # xitee-homework.yaml 
-Contain the playbook of ansible all tasks 
+This file contains the Ansible playbook for all the tasks.
 
 # backup.sh 
-A script handle the backup of certain files provdied in the task requirments 
+This script is responsible for handling the backup of specific files as outlined in the task requirements.
 
 # check_backup_date.sh
-Another script to check and delete old backup that is more than two days ago as demand in the task 
+Another script designed to check and delete older backups, which are more than two days old, as requested in the task. 
 
-# How to use 
-- Add ur server to Inventroy file under `[server]`
-- Test if ansible can reach the server by excuting
+
+# How to use:
+1. Include your server in the Inventory file under the section [server].
+2. Test whether Ansible can connect to the server by executing the appropriate command.
 ```
-ansible -i inventory --private-key <path-to-private-key> -m ping 
+ansible -i Inventory --private-key <path-to-private-key> -m ping 
 ```
 - run following command:
+
 ```
 ansible-playbook -i Inventory --private-key <path-to-private-key> xitee-homework.yaml 
 ```
