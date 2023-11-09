@@ -15,12 +15,12 @@ Another script designed to check and delete older backups, which are more than t
 
 
 # How to use:
-1. Include your server in the Inventory file under the section [server].
+1. Include your server IP in the Inventory file under the section [server].
 2. Test whether Ansible can connect to the server by executing the appropriate command.
 ```
 ansible -i Inventory --private-key <path-to-private-key> -m ping 
 ```
-- run following command:
+3. Run following command:
 
 ```
 ansible-playbook -i Inventory --private-key <path-to-private-key> xitee-homework.yaml 
